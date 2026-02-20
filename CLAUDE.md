@@ -40,7 +40,7 @@ git push origin master
 
 An always-on Telegram agent that:
 - Relays your messages to Claude and sends back responses
-- **Two processing engines**: Claude Code CLI (local, uses your subscription) or Anthropic API (VPS, pay-per-token). Both are fully compliant with Anthropic's Terms of Service.
+- **Two processing engines**: Claude Code CLI (local, uses your subscription) or Anthropic API (VPS, pay-per-token). Local mode runs Anthropic's official Claude Code CLI directly — nothing changes there. For production/always-on deployments, we recommend API keys with smart routing to manage costs. See [Anthropic's Legal and Compliance page](https://code.claude.com/docs/en/legal-and-compliance) for the latest authentication policies.
 - **Hybrid mode**: VPS always on, forwards to local when your machine is awake
 - Runs multiple specialized AI agents (Research, Content, Finance, Strategy, Critic)
 - **Extensible via MCP**: Connect any MCP servers you use (email, calendar, project management, etc.)
