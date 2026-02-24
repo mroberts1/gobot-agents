@@ -36,6 +36,9 @@ You ──▶ Telegram ──▶ Bot ─┤
 
 ## What's New
 
+### v2.6.1 — Universal Fallback (OpenRouter/Ollama everywhere)
+Fallback to OpenRouter and Ollama now works on **all modes** (local, VPS, hybrid). Previously only local had fallback — VPS returned generic errors when Anthropic API failed. Also catches Claude Pro/Max subscription limits (was silently passing them through as responses).
+
 ### v2.6.0 — Multi-Bot Agent Identities + Board Meetings
 Each agent can now have its own Telegram bot — messages from Research, Finance, Content etc. appear from separate bot accounts. New `/board` command triggers a full multi-agent discussion on any topic. Agents can consult each other mid-conversation. All optional, fully backward compatible.
 

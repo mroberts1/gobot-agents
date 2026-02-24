@@ -1,5 +1,45 @@
 # Gobot Changelog
 
+## v2.6.1 — 2026-02-24
+
+**Universal Fallback — OpenRouter/Ollama now works on VPS + catches subscription limits**
+
+Fallback to OpenRouter and Ollama was only wired up for local (Mac) mode. If Anthropic API failed on VPS, the bot returned a generic error instead of trying backup LLMs. Additionally, Claude Pro/Max subscription limit messages weren't detected as errors, so fallback never triggered even on local.
+
+### Fixes
+
+- **VPS fallback** — `anthropic-processor.ts` and `agent-session.ts` now call `callFallbackLLM()` when Anthropic API or Agent SDK fails. Previously only the local Claude Code subprocess paths had fallback.
+- **VPS resume fallback** — Both Agent SDK and Anthropic API resume paths in `bot.ts` now try fallback LLMs before returning "Error resuming task."
+- **Subscription limit detection** — Added 12 new error patterns to `isClaudeErrorResponse()` covering Pro, Max, and any subscription tier limits: `hit your limit`, `usage limit`, `usage cap`, `message limit`, `reached your limit`, `out of messages`, `no messages remaining`, `upgrade to`, `exceeds your plan`, `plan limit`, `token limit reached`, `conversation limit`.
+- **Case-insensitive matching** — Error pattern detection now uses case-insensitive comparison (was case-sensitive before).
+
+### Updated Files
+- `src/lib/claude.ts` — Extended error patterns + case-insensitive matching
+- `src/lib/anthropic-processor.ts` — Import + call `callFallbackLLM()` on API failure
+- `src/lib/agent-session.ts` — Import + call `callFallbackLLM()` on SDK failure
+- `src/bot.ts` — VPS resume catch blocks now try fallback before returning errors
+
+### How It Works Now
+
+```
+Any mode (Local / VPS / Hybrid):
+  Claude fails? (API error, subscription limit, timeout)
+    ├── Try OpenRouter (if OPENROUTER_API_KEY is set)
+    ├── Try Ollama (if running locally)
+    └── Return error message (only if both fail)
+```
+
+### Setup Reminder
+
+To enable fallback, set these in your `.env`:
+```bash
+OPENROUTER_API_KEY=sk-or-v1-your_key
+OPENROUTER_MODEL=moonshotai/kimi-k2.5      # or any model
+OLLAMA_MODEL=qwen3-coder                    # if running Ollama locally
+```
+
+---
+
 ## v2.6.0 — 2026-02-23
 
 **Multi-Bot Agent Identities + Cross-Agent Consultation + Board Meetings**

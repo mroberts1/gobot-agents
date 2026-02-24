@@ -20,6 +20,7 @@ import type { Options } from "@anthropic-ai/claude-agent-sdk";
 import { selectModelForMessage } from "./model-router";
 import { AskUserSignal } from "./anthropic-processor";
 import { buildTaskKeyboard } from "./task-queue";
+import { callFallbackLLM } from "./fallback-llm";
 import * as supabase from "./supabase";
 import type { Context } from "grammy";
 
@@ -428,6 +429,15 @@ export async function processWithAgentSDK(
       return "";
     }
 
+    // Not an AskUserSignal — try fallback before throwing
+    console.error("Agent SDK error:", signal);
+    console.log("🔄 VPS: Agent SDK failed, trying fallback LLMs...");
+    try {
+      const fallbackResponse = await callFallbackLLM(userMessage);
+      return fallbackResponse;
+    } catch (fallbackErr) {
+      console.error("❌ Fallback also failed:", fallbackErr);
+    }
     throw signal;
   }
 

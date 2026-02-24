@@ -18,6 +18,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import * as supabase from "./supabase";
 import { initiatePhoneCall } from "./voice";
 import { buildTaskKeyboard } from "./task-queue";
+import { callFallbackLLM } from "./fallback-llm";
 import type { Context } from "grammy";
 
 // ============================================================
@@ -481,11 +482,20 @@ export async function processWithAnthropic(
   } catch (err: any) {
     console.error("Anthropic API error:", err.message);
 
+    // Try fallback LLMs before returning an error
+    console.log("🔄 VPS: Anthropic API failed, trying fallback LLMs...");
+    try {
+      const fallbackResponse = await callFallbackLLM(userMessage);
+      return fallbackResponse;
+    } catch (fallbackErr) {
+      console.error("❌ Fallback also failed:", fallbackErr);
+    }
+
     if (err.status === 401) {
       return "API authentication error. Check ANTHROPIC_API_KEY.";
     }
     if (err.status === 429) {
-      return "Rate limited. Please try again in a moment.";
+      return "Rate limited and fallback unavailable. Please try again in a moment.";
     }
 
     return `Error: ${err.message}`;

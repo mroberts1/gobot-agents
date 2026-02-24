@@ -905,7 +905,13 @@ async function handleCallbackQuery(ctx: Context): Promise<void> {
       });
     } catch (err) {
       console.error("Agent SDK resume error:", err);
-      await ctx.reply("Error resuming task. Please try again.");
+      // Try fallback before giving up
+      try {
+        const fallbackResponse = await callFallbackLLM(task.original_prompt);
+        await sendResponse(ctx, fallbackResponse);
+      } catch {
+        await ctx.reply("Error resuming task. Please try again.");
+      }
       await updateTask(result.taskId, { status: "failed", result: String(err) });
     } finally {
       typing.stop();
@@ -953,7 +959,13 @@ async function handleCallbackQuery(ctx: Context): Promise<void> {
       });
     } catch (err) {
       console.error("VPS resume error:", err);
-      await ctx.reply("Error resuming task. Please try again.");
+      // Try fallback before giving up
+      try {
+        const fallbackResponse = await callFallbackLLM(task.original_prompt);
+        await sendResponse(ctx, fallbackResponse);
+      } catch {
+        await ctx.reply("Error resuming task. Please try again.");
+      }
       await updateTask(result.taskId, { status: "failed", result: String(err) });
     } finally {
       typing.stop();

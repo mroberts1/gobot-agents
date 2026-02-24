@@ -41,6 +41,7 @@ export interface ClaudeResult {
  */
 export function isClaudeErrorResponse(text: string): boolean {
   const errorPatterns = [
+    // API-level errors
     "authentication_error",
     "API Error: 401",
     "API Error: 403",
@@ -55,8 +56,22 @@ export function isClaudeErrorResponse(text: string): boolean {
     "billing",
     "insufficient_quota",
     "payment_required",
+    // Subscription limit messages (Pro, Max, any tier)
+    "hit your limit",
+    "usage limit",
+    "usage cap",
+    "message limit",
+    "reached your limit",
+    "out of messages",
+    "no messages remaining",
+    "upgrade to",
+    "exceeds your plan",
+    "plan limit",
+    "token limit reached",
+    "conversation limit",
   ];
-  return errorPatterns.some((p) => text.includes(p));
+  const lower = text.toLowerCase();
+  return errorPatterns.some((p) => lower.includes(p.toLowerCase()));
 }
 
 /**
