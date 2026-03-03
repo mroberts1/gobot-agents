@@ -469,17 +469,17 @@ async function processCallTaskOnVPS(
   taskDescription: string,
   chatId: string
 ): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return "Cannot process task — no API key configured.";
+  if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENROUTER_API_KEY) {
+    return "Cannot process task — no API key configured.";
+  }
 
   try {
-    const { default: Anthropic } = await import("@anthropic-ai/sdk");
-    const client = new Anthropic({ apiKey });
+    const { createResilientMessage, getModelForProvider } = await import("./lib/resilient-client");
 
     const { model } = selectModelForMessage(taskDescription);
 
-    const response = await client.messages.create({
-      model,
+    const response = await createResilientMessage({
+      model: getModelForProvider(model),
       max_tokens: 4096,
       messages: [
         {

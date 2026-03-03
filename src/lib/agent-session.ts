@@ -17,10 +17,16 @@
 
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
-import { selectModelForMessage } from "./model-router";
+import { selectModelForMessage, toOpenRouterModel } from "./model-router";
 import { AskUserSignal } from "./anthropic-processor";
 import { buildTaskKeyboard } from "./task-queue";
 import { callFallbackLLM } from "./fallback-llm";
+import {
+  isAnthropicAvailable,
+  markAnthropicDown,
+  isCreditError,
+  getOpenRouterEnv,
+} from "./resilient-client";
 import * as supabase from "./supabase";
 import type { Context } from "grammy";
 
@@ -171,8 +177,10 @@ export async function processWithAgentSDK(
   }
 
   // Select model tier based on complexity
-  const { tier, model } = selectModelForMessage(userMessage, budgetRemaining);
-  console.log(`[SDK] Model: ${tier.toUpperCase()} (${model})`);
+  const { tier, model: selectedModel } = selectModelForMessage(userMessage, budgetRemaining);
+  const useOpenRouter = !isAnthropicAvailable() && !!process.env.OPENROUTER_API_KEY;
+  const model = useOpenRouter ? toOpenRouterModel(selectedModel) : selectedModel;
+  console.log(`[SDK] Model: ${tier.toUpperCase()} (${model})${useOpenRouter ? " [via OpenRouter]" : ""}`);
 
   // Load conversation context from Supabase
   let contextStr = "";
@@ -210,7 +218,9 @@ export async function processWithAgentSDK(
     executable: process.env.BUN_PATH || "bun",
     env: {
       ...process.env,
-      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || "",
+      ...(useOpenRouter
+        ? getOpenRouterEnv()
+        : { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || "" }),
       HOME: process.env.HOME || "/root",
       // Ensure bun is in PATH for VPS environments
       PATH: `${process.env.HOME || "/root"}/.bun/bin:/usr/local/bin:/usr/bin:/bin`,
@@ -429,7 +439,14 @@ export async function processWithAgentSDK(
       return "";
     }
 
-    // Not an AskUserSignal — try fallback before throwing
+    // Not an AskUserSignal — check if credit error for OpenRouter retry
+    if (isCreditError(signal) && !useOpenRouter && process.env.OPENROUTER_API_KEY) {
+      markAnthropicDown();
+      console.log("[Resilient] Agent SDK credit error — retrying via OpenRouter...");
+      return processWithAgentSDK(userMessage, chatId, ctx, resumeState, onCallInitiated);
+    }
+
+    // Try fallback LLMs before throwing
     console.error("Agent SDK error:", signal);
     console.log("🔄 VPS: Agent SDK failed, trying fallback LLMs...");
     try {

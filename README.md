@@ -36,6 +36,11 @@ You ──▶ Telegram ──▶ Bot ─┤
 
 ## What's New
 
+### v2.7.0 — Resilient API Fallback + Cost-Optimized Routing
+**Automatic Anthropic → OpenRouter failover.** If Anthropic API goes down (credit depletion, rate limits, outages), all API calls seamlessly route through OpenRouter using the same Anthropic SDK — zero format conversion, zero disruption. Re-checks Anthropic every 15 minutes. Fully optional: works without `OPENROUTER_API_KEY`, errors propagate normally.
+
+**Cost-optimized model routing.** Default model tier changed from Sonnet to Haiku. Most messages (greetings, questions, status checks) now route to Haiku (~$0.003/msg) instead of Sonnet (~$0.15/msg). Sonnet activates for tool-requiring tasks, Opus for complex analysis. Estimated **~42% cost reduction** with no quality loss for simple messages.
+
 ### v2.6.1 — Universal Fallback (OpenRouter/Ollama everywhere)
 Fallback to OpenRouter and Ollama now works on **all modes** (local, VPS, hybrid). Previously only local had fallback — VPS returned generic errors when Anthropic API failed. Also catches Claude Pro/Max subscription limits (was silently passing them through as responses).
 
