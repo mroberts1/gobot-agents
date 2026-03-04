@@ -14,7 +14,7 @@ You ──▶ Telegram ──▶ Bot ─┤
                                 ├── Same code, same features everywhere:
                                 │   MCP Servers, Skills, Hooks, CLAUDE.md
                                 │
-                                └── Supabase (shared memory, goals, history)
+                                └── Convex or Supabase (shared memory, goals, history)
 ```
 
 - **Relay**: Send messages on Telegram, get Claude responses back (and connect from Google Chat, Microsoft Teams, Discord, WhatsApp, Slack, and more)
@@ -22,7 +22,7 @@ You ──▶ Telegram ──▶ Bot ─┤
 - **Multi-Bot Identities**: Each agent can have its own Telegram bot for visual separation
 - **Board Meetings**: `/board` command triggers multi-agent discussion with synthesis
 - **Cross-Agent**: Agents consult each other mid-conversation automatically
-- **Memory**: Persistent facts, goals, and conversation history via Supabase
+- **Memory**: Persistent facts, goals, and conversation history via Convex or Supabase (your choice)
 - **Image Storage**: Photos stored persistently with AI-generated descriptions, tags, and semantic search
 - **Smart Routing**: Messages auto-classified by complexity — Haiku (fast), Sonnet (medium), Opus (powerful)
 - **Streaming Progress**: Complex tasks show real-time tool usage and progress updates in Telegram
@@ -35,6 +35,9 @@ You ──▶ Telegram ──▶ Bot ─┤
 - **Auto-Deploy**: Push to GitHub, VPS pulls and restarts automatically
 
 ## What's New
+
+### v2.8.0 — Convex Migration + Database Choice
+**Convex is now the primary database backend.** One-command setup, auto-managed TypeScript schema, built-in vector search and file storage. Supabase remains fully supported as a first-class alternative — choose whichever fits your workflow during Phase 2 setup. All "legacy" and "deprecation" language removed: both backends are equal citizens.
 
 ### v2.7.0 — Resilient API Fallback + Cost-Optimized Routing
 **Automatic Anthropic → OpenRouter failover.** If Anthropic API goes down (credit depletion, rate limits, outages), all API calls seamlessly route through OpenRouter using the same Anthropic SDK — zero format conversion, zero disruption. Re-checks Anthropic every 15 minutes. Fully optional: works without `OPENROUTER_API_KEY`, errors propagate normally.
@@ -123,7 +126,7 @@ This connects your existing install to the official repo without touching your `
 Claude Code reads the `CLAUDE.md` file and walks you through a guided conversation to:
 
 1. Create a Telegram bot via BotFather
-2. Set up Supabase for persistent memory
+2. Choose and set up your database (Convex or Supabase)
 3. Personalize your profile and agents
 4. Customize agents + optional multi-bot identities and `/board` meetings
 5. Test the bot
@@ -139,7 +142,7 @@ Claude Code reads the `CLAUDE.md` file and walks you through a guided conversati
 | Telegram SDK | [grammY](https://grammy.dev) |
 | AI (Local) | [Claude Code](https://claude.ai/claude-code) CLI |
 | AI (VPS) | [Anthropic Messages API](https://docs.anthropic.com/en/api/messages) |
-| Database | [Supabase](https://supabase.com) (PostgreSQL + Storage) |
+| Database | [Convex](https://convex.dev) (recommended) or [Supabase](https://supabase.com) |
 | Always-On | macOS launchd / PM2 + cron / VPS webhook mode |
 | Voice (opt.) | [ElevenLabs](https://elevenlabs.io) |
 | Phone Calls (opt.) | ElevenLabs + [Twilio](https://twilio.com) |
@@ -157,11 +160,9 @@ Claude Code reads the `CLAUDE.md` file and walks you through a guided conversati
 └─────────────┘     └──────┬───────┘     └─────────────────┘
                            │
                     ┌──────┴───────┐
-                    │  Supabase    │
-                    │  - Messages  │
-                    │  - Memory    │
-                    │  - Assets    │
-                    │  - Logs      │
+                    │  Database    │
+                    │  (Convex or  │
+                    │   Supabase)  │
                     └──────────────┘
 ```
 
@@ -173,12 +174,10 @@ Claude Code reads the `CLAUDE.md` file and walks you through a guided conversati
 └─────────────┘     └──────┬───────┘     │                     │
                            │              │  ✅ MCP Servers      │
                     ┌──────┴───────┐     │  ✅ Skills           │
-                    │  Supabase    │     │  ✅ Hooks            │
-                    │  - Messages  │     │  ✅ CLAUDE.md        │
-                    │  - Memory    │     │  ✅ Built-in Tools   │
-                    │  - Assets    │     └─────────────────────┘
-                    │  - Tasks     │
-                    └──────────────┘
+                    │  Database    │     │  ✅ Hooks            │
+                    │  (Convex or  │     │  ✅ CLAUDE.md        │
+                    │   Supabase)  │     │  ✅ Built-in Tools   │
+                    └──────────────┘     └─────────────────────┘
 ```
 
 ### Hybrid Mode
@@ -195,7 +194,7 @@ Claude Code reads the `CLAUDE.md` file and walks you through a guided conversati
                   └──────────────────┬───────────────────────┘
                                      │
                               ┌──────┴───────┐
-                              │  Supabase    │
+                              │  Database    │
                               │  (shared)    │
                               └──────────────┘
 ```
@@ -232,6 +231,7 @@ bun run setup:google       # Set up Google OAuth (Gmail + Calendar)
 bun run setup:verify       # Full health check
 bun run test:telegram      # Test Telegram connectivity
 bun run test:supabase      # Test Supabase connectivity
+bun run test:convex        # Test Convex connectivity
 bun run uninstall          # Remove all services
 ```
 
@@ -254,4 +254,4 @@ MIT
 
 Built by [Goda Go](https://youtube.com/@GodaGo)
 
-<!-- Updated February 19, 2026: Clarified deployment modes and authentication following Anthropic's January 2026 ToS enforcement. -->
+<!-- Updated March 4, 2026: v2.8.0 — Convex migration + database choice. -->

@@ -16,7 +16,7 @@
  *   - Optional: OpenAI API key for semantic search embeddings
  */
 
-import { getSupabase, isSupabaseEnabled } from "./supabase";
+import { getSupabase, isSupabaseEnabled } from "./convex";
 
 // ============================================================
 // TYPES

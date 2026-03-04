@@ -22,7 +22,7 @@ import {
   getRunningTasks,
   getStaleTasks,
   type AsyncTask,
-} from "./supabase";
+} from "./convex";
 
 // ============================================================
 // RESPONSE PARSING -- Detect questions in Claude output

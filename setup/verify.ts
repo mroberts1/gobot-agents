@@ -75,8 +75,6 @@ function checkRequiredEnv() {
   const required: [string, string][] = [
     ["TELEGRAM_BOT_TOKEN", "Telegram bot token"],
     ["TELEGRAM_USER_ID", "Telegram user ID"],
-    ["SUPABASE_URL", "Supabase project URL"],
-    ["SUPABASE_ANON_KEY", "Supabase anon key"],
   ];
 
   for (const [key, label] of required) {
@@ -88,6 +86,22 @@ function checkRequiredEnv() {
       const masked = value.length > 8 ? value.slice(0, 4) + "..." + value.slice(-4) : "***";
       record(label, "pass", `${key} = ${masked}`);
     }
+  }
+
+  // Database backend check (Convex or Supabase)
+  const convexUrl = process.env.CONVEX_URL;
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const hasConvex = convexUrl && !convexUrl.includes("your_");
+  const hasSupabase = supabaseUrl && !supabaseUrl.includes("your_");
+
+  if (hasConvex) {
+    const masked = convexUrl!.length > 8 ? convexUrl!.slice(0, 4) + "..." + convexUrl!.slice(-4) : "***";
+    record("Database backend", "pass", `Convex: ${masked}`);
+  } else if (hasSupabase) {
+    const masked = supabaseUrl!.length > 8 ? supabaseUrl!.slice(0, 4) + "..." + supabaseUrl!.slice(-4) : "***";
+    record("Database backend", "pass", `Supabase: ${masked}`);
+  } else {
+    record("Database backend", "fail", "No database configured (set CONVEX_URL or SUPABASE_URL in .env)");
   }
 }
 
@@ -118,57 +132,84 @@ async function checkTelegram() {
   }
 }
 
-async function checkSupabase() {
-  console.log(`\n${cyan("  [3/6] Supabase Connectivity")}`);
+async function checkDatabase() {
+  console.log(`\n${cyan("  [3/6] Database Connectivity")}`);
 
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  const convexUrl = process.env.CONVEX_URL;
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const hasConvex = convexUrl && !convexUrl.includes("your_");
+  const hasSupabase = supabaseUrl && !supabaseUrl.includes("your_");
 
-  if (!url || !key || url.includes("your_") || key.includes("your_")) {
-    record("Supabase connection", "skip", "No valid credentials configured");
+  // Convex path
+  if (hasConvex) {
+    try {
+      const { testConnection } = await import("../src/lib/convex");
+      const result = await testConnection();
+      if (result.includes("OK")) {
+        record("Convex connection", "pass", result);
+      } else {
+        record("Convex connection", "fail", result);
+      }
+    } catch (err: any) {
+      record("Convex connection", "fail", `Import/connection error: ${err.message}`);
+    }
     return;
   }
 
-  // Test messages table
-  try {
-    const response = await fetch(`${url}/rest/v1/messages?select=id&limit=1`, {
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-      },
-    });
+  // Supabase path
+  if (hasSupabase) {
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
-    if (response.ok) {
-      record("Supabase messages table", "pass", "Connected and accessible");
-    } else if (response.status === 404) {
-      record("Supabase messages table", "fail", "Table not found - run migrations");
-    } else {
-      const body = await response.text();
-      record("Supabase messages table", "fail", `HTTP ${response.status}: ${body.slice(0, 100)}`);
+    if (!key || key.includes("your_")) {
+      record("Supabase connection", "fail", "SUPABASE_URL set but no valid key configured");
+      return;
     }
-  } catch (err: any) {
-    record("Supabase messages table", "fail", `Connection error: ${err.message}`);
+
+    // Test messages table
+    try {
+      const response = await fetch(`${supabaseUrl}/rest/v1/messages?select=id&limit=1`, {
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+        },
+      });
+
+      if (response.ok) {
+        record("Supabase messages table", "pass", "Connected and accessible");
+      } else if (response.status === 404) {
+        record("Supabase messages table", "fail", "Table not found - run db/schema.sql");
+      } else {
+        const body = await response.text();
+        record("Supabase messages table", "fail", `HTTP ${response.status}: ${body.slice(0, 100)}`);
+      }
+    } catch (err: any) {
+      record("Supabase messages table", "fail", `Connection error: ${err.message}`);
+    }
+
+    // Test memory table
+    try {
+      const response = await fetch(`${supabaseUrl}/rest/v1/memory?select=id&limit=1`, {
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+        },
+      });
+
+      if (response.ok) {
+        record("Supabase memory table", "pass", "Connected and accessible");
+      } else if (response.status === 404) {
+        record("Supabase memory table", "warn", "Table not found - memory features unavailable");
+      } else {
+        record("Supabase memory table", "warn", `HTTP ${response.status}`);
+      }
+    } catch (err: any) {
+      record("Supabase memory table", "fail", `Connection error: ${err.message}`);
+    }
+    return;
   }
 
-  // Test memory table
-  try {
-    const response = await fetch(`${url}/rest/v1/memory?select=id&limit=1`, {
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-      },
-    });
-
-    if (response.ok) {
-      record("Supabase memory table", "pass", "Connected and accessible");
-    } else if (response.status === 404) {
-      record("Supabase memory table", "warn", "Table not found - memory features unavailable");
-    } else {
-      record("Supabase memory table", "warn", `HTTP ${response.status}`);
-    }
-  } catch (err: any) {
-    record("Supabase memory table", "fail", `Connection error: ${err.message}`);
-  }
+  // Neither configured
+  record("Database connection", "skip", "No database configured (set up in Phase 2)");
 }
 
 async function checkServices() {
@@ -312,7 +353,7 @@ async function main() {
   // Run all checks
   checkRequiredEnv();
   await checkTelegram();
-  await checkSupabase();
+  await checkDatabase();
   await checkServices();
   await checkAgentBots();
   checkOptionalIntegrations();

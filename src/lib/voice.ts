@@ -6,7 +6,7 @@
  * All functions gracefully skip if API keys aren't configured.
  */
 
-import * as supabase from "./supabase";
+import * as db from "./convex";
 import { isMacAlive } from "./mac-health";
 import { getCapabilitiesText } from "./capabilities";
 
@@ -129,9 +129,9 @@ export async function initiatePhoneCall(
     let memoryContext = "";
     let conversationHistory = "";
     try {
-      memoryContext = await supabase.getMemoryContext();
+      memoryContext = await db.getMemoryContext();
       const chatId = process.env.TELEGRAM_USER_ID || "";
-      const recentMessages = await supabase.getRecentMessages(chatId, 10);
+      const recentMessages = await db.getRecentMessages(chatId, 10);
       conversationHistory = recentMessages
         .map((m) => {
           const role = m.role === "user" ? userName : "Bot";
@@ -384,16 +384,16 @@ export async function buildVoiceAgentContext(): Promise<Record<string, any>> {
   let goals = "";
 
   try {
-    memory = await supabase.getMemoryContext();
+    memory = await db.getMemoryContext();
     const chatId = process.env.TELEGRAM_USER_ID || "";
-    const messages = await supabase.getRecentMessages(chatId, 5);
+    const messages = await db.getRecentMessages(chatId, 5);
     recentChat = messages
       .map((m) => {
         const role = m.role === "user" ? userName : "Bot";
         return `${role}: ${m.content.substring(0, 200)}`;
       })
       .join("\n");
-    const activeGoals = await supabase.getActiveGoals();
+    const activeGoals = await db.getActiveGoals();
     goals = activeGoals
       .map((g) => `- ${g.content}${g.deadline ? ` (by ${g.deadline})` : ""}`)
       .join("\n");

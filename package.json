@@ -16,6 +16,8 @@
     "setup:google": "bun run setup/setup-google-oauth.ts",
     "test:telegram": "bun run setup/test-telegram.ts",
     "test:supabase": "bun run setup/test-supabase.ts",
+    "test:convex": "bun run setup/test-convex.ts",
+    "migrate:convex": "bun run scripts/migrate-to-convex.ts",
     "uninstall": "bun run setup/uninstall.ts",
     "upgrade": "bun run setup/upgrade.ts"
   },
@@ -23,6 +25,7 @@
     "@anthropic-ai/claude-agent-sdk": "^0.1.54",
     "@anthropic-ai/sdk": "^0.39.0",
     "@supabase/supabase-js": "^2.49.0",
+    "convex": "^1.32.0",
     "grammy": "^1.35.0",
     "zod": "^3.24.0"
   },

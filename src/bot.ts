@@ -43,7 +43,7 @@ import {
   log as sbLog,
   createTask,
   updateTask,
-} from "./lib/supabase";
+} from "./lib/convex";
 
 // Task Queue (Human-in-the-Loop)
 import {

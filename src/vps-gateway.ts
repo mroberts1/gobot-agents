@@ -47,7 +47,7 @@ import {
   parseAssetDescTag,
   stripAssetDescTag,
 } from "./lib/asset-store";
-import * as supabase from "./lib/supabase";
+import * as db from "./lib/convex";
 import { BotRegistry } from "./lib/bot-registry";
 import { getAgentByTopicId, getAgentConfig } from "./agents";
 import { gatherBoardData } from "./lib/board-data";
@@ -652,7 +652,7 @@ bot.on("message:text", async (ctx) => {
     );
 
     const [boardContext, boardData] = await Promise.all([
-      supabase.getBoardMeetingContext(7),
+      db.getBoardMeetingContext(7),
       gatherBoardData(),
     ]);
     console.log(`[BoardMeeting] Data gathered in ${boardData.fetchDurationMs}ms (errors: ${boardData.errors.join(", ") || "none"})`);
@@ -704,7 +704,7 @@ Synthesize key themes, identify conflicts or alignments, and propose 3-5 concret
     await botRegistry.sendAsAgent("general", chatId, synthesis, { threadId });
 
     // Persist full meeting
-    await supabase.saveMessage({
+    await db.saveMessage({
       chat_id: chatId,
       role: "assistant",
       content: `[Board Meeting]\n\n${agentResponses.map((r) => `${r.agent}: ${r.response}`).join("\n\n")}\n\n[Synthesis]\n${synthesis}`,
@@ -1097,7 +1097,7 @@ bot.on("callback_query:data", async (ctx) => {
       return;
     }
 
-    // Legacy resume: task has messages_snapshot from direct Anthropic API
+    // Direct API resume: task has messages_snapshot from direct Anthropic API
     if (result.task?.metadata?.messages_snapshot) {
       console.log(
         `Resuming from ask_user: task=${result.taskId}, choice="${result.choice}"`
@@ -1204,13 +1204,13 @@ bot.on("callback_query:data", async (ctx) => {
 // ============================================================
 
 setInterval(async () => {
-  await supabase.upsertHeartbeat(NODE_ID, {
+  await db.upsertHeartbeat(NODE_ID, {
     mac_alive: isMacAlive(),
     uptime: process.uptime(),
   });
 }, 30_000);
 
-supabase.upsertHeartbeat(NODE_ID, { started_at: new Date().toISOString() });
+db.upsertHeartbeat(NODE_ID, { started_at: new Date().toISOString() });
 
 setInterval(async () => {
   const reminded = await checkStaleTasks(BOT_TOKEN, ALLOWED_USER_ID);
@@ -1455,7 +1455,7 @@ VPS Gateway started!
   Daily budget: $${process.env.DAILY_API_BUDGET || "5.00"}
 `);
 
-supabase.testConnection().catch(() => {});
+db.testConnection().catch(() => {});
 
 // ============================================================
 // STARTUP RECOVERY — Process missed calls from crashes
@@ -1516,7 +1516,7 @@ async function recoverMissedCalls(): Promise<void> {
     );
 
     // Check Supabase for each conversation_id
-    const sb = supabase.getSupabase();
+    const sb = db.getSupabase();
 
     for (const conv of candidates) {
       // Skip if already in our in-memory dedup set

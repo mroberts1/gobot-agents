@@ -1,5 +1,36 @@
 # Gobot Changelog
 
+## v2.8.0 — 2026-03-04
+
+**Convex Migration + Database Choice for Community Members**
+
+GoBot now uses Convex as its primary database backend, with Supabase as a fully supported first-class alternative. The runtime already handled both transparently — this release updates the docs, setup flow, and health checks so community members explicitly choose their database during Phase 2 setup.
+
+### Changes
+
+- **`.env.example`** — Database section now presents Option A (Convex) and Option B (Supabase) side by side, both commented out by default. No "REQUIRED" or "LEGACY" labels.
+- **`CLAUDE.md` Phase 2** — Full rewrite as a choice-driven section with comparison table, Phase 2A (Convex) and Phase 2B (Supabase) sub-sections, and a "switching later" guide.
+- **`CLAUDE.md` Phase 0** — Environment scan now reports whichever backend is active without suggesting migration. Both backends skip Phase 2.
+- **`CLAUDE.md` Phase 2.5** — Semantic search instructions split by database backend (Convex env var vs Supabase `.env` key).
+- **`CLAUDE.md` Phase 9** — VPS `.env` example shows both database options.
+- **`db/schema.sql`** — Deprecation header replaced with clean "Supabase Schema" header. No functional changes.
+- **`setup/verify.ts`** — Health check is now database-agnostic: `checkRequiredEnv()` checks for either backend, `checkSupabase()` renamed to `checkDatabase()` and tests whichever is configured.
+- **Code comment cleanup** — Removed all "legacy" and "deprecation" wording from `convex.ts`, `asset-store.ts`, `vps-gateway.ts`, `vps-convex-client.ts`, `model-router.ts`, and `.env.example`.
+
+### New Files
+- `convex/` — Full Convex backend (schema, messages, memory, logs, async tasks, assets, embeddings, knowledge base, migrations)
+- `scripts/migrate-to-convex.ts` — Supabase → Convex data migration script
+- `setup/test-convex.ts` — Convex connectivity test
+- `src/lib/convex.ts` — Database client with tiered fallback (Convex → Supabase → local JSON)
+- `vps-convex-client.ts` — Lightweight Convex client for VPS mode
+
+### Compatibility
+- Fully backward compatible. Existing Supabase setups continue to work with zero changes.
+- If both `CONVEX_URL` and `SUPABASE_URL` are set, Convex takes priority.
+- No code logic changes — the runtime fallback already worked.
+
+---
+
 ## v2.7.0 — 2026-03-03
 
 **Resilient API Fallback (Anthropic → OpenRouter) + Cost-Optimized Model Routing**

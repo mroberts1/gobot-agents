@@ -14,7 +14,7 @@
  * 2 consecutive failures = DOWN, 1 success = ALIVE.
  */
 
-import { getNodeStatus } from "./supabase";
+import { getNodeStatus } from "./convex";
 
 interface HealthState {
   isAlive: boolean;

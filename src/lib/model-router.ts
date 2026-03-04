@@ -2,8 +2,8 @@
  * Model Router — Tiered Model Selection
  *
  * Extracts complexity classification from anthropic-processor.ts
- * into a standalone module. Used by both the legacy processor
- * and the new Agent SDK session manager.
+ * into a standalone module. Used by both the direct API processor
+ * and the Agent SDK session manager.
  *
  * Cost-optimized: Default to Haiku (~$0.003/msg), only escalate
  * to Sonnet (~$0.15/msg) when tools are clearly needed, and to

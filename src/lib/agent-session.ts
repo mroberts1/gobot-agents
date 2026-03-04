@@ -27,7 +27,7 @@ import {
   isCreditError,
   getOpenRouterEnv,
 } from "./resilient-client";
-import * as supabase from "./supabase";
+import * as db from "./convex";
 import type { Context } from "grammy";
 
 // ============================================================
@@ -185,11 +185,11 @@ export async function processWithAgentSDK(
   // Load conversation context from Supabase
   let contextStr = "";
   try {
-    const conversationHistory = await supabase.getConversationContext(
+    const conversationHistory = await db.getConversationContext(
       chatId,
       10
     );
-    const persistentMemory = await supabase.getMemoryContext();
+    const persistentMemory = await db.getMemoryContext();
     contextStr = persistentMemory + conversationHistory;
   } catch (err) {
     console.error("Failed to load conversation context:", err);
@@ -399,7 +399,7 @@ export async function processWithAgentSDK(
   } catch (signal) {
     if (signal instanceof AskUserSignal) {
       // Pause execution — save state and send Telegram buttons
-      const task = await supabase.createTask(
+      const task = await db.createTask(
         chatId,
         userMessage || "resumed task",
         ctx.message?.message_thread_id,
@@ -407,7 +407,7 @@ export async function processWithAgentSDK(
       );
 
       if (task) {
-        await supabase.updateTask(task.id, {
+        await db.updateTask(task.id, {
           status: "needs_input",
           pending_question: signal.question,
           pending_options: signal.options,

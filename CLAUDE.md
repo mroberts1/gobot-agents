@@ -47,8 +47,8 @@ An always-on Telegram agent that:
 - **Human-in-the-loop**: Claude asks for confirmation via inline buttons before taking actions
 - Proactively checks in with smart context awareness
 - Sends morning briefings with pluggable data sources (goals, calendar, email, news, tasks)
-- Persists memory (facts, goals, conversation history) via Supabase
-- Stores images persistently in Supabase Storage with AI-generated descriptions and semantic search
+- Persists memory (facts, goals, conversation history) via Convex (Supabase fallback)
+- Stores images persistently in Convex Storage with AI-generated descriptions and semantic search
 - Survives reboots via launchd (macOS) or PM2 + scheduler (Windows/Linux)
 - Falls back to OpenRouter/Ollama when Claude is unavailable
 - Optional: voice replies, phone calls, audio transcription
@@ -109,14 +109,11 @@ Even if the user says "no," run these checks silently. They may have forgotten, 
    - Linux/Windows: `pm2 list` (if pm2 exists)
    - Report any existing bot services that might conflict
 
-5. **Check for existing Supabase MCP:**
-   - Look for `supabase` in Claude Code's MCP configuration
-   - If connected, test the connection
-
-6. **Check for existing Supabase tables** (if credentials found):
-   - Run `bun run setup/test-supabase.ts` to verify connectivity
-   - Query for existing tables: `messages`, `memory`, `logs`, `async_tasks`, `node_heartbeat`, `call_transcripts`
-   - Check if data exists in `messages` table (indicates active prior usage)
+5. **Check for existing database:**
+   - If `CONVEX_URL` configured and working → report "Database — Convex (active)", skip Phase 2
+   - If `SUPABASE_URL` configured and working → report "Database — Supabase (active)", skip Phase 2
+   - If neither → Phase 2 will present the choice
+   - Do NOT suggest migration unless user asks
 
 7. **Check for existing profile:**
    - Look for `config/profile.md` in this project
@@ -135,9 +132,7 @@ Source: [this project / claude-telegram-relay at ~/path / other]
 
 ✅ Telegram Bot Token — found, valid
 ✅ Telegram User ID — found
-✅ Supabase URL — found
-✅ Supabase Anon Key — found
-❌ Supabase Service Role Key — missing (needed for GoBot)
+✅ Database — Convex (active) / Supabase (active) / ❌ not configured (set up in Phase 2)
 ✅ User Name — "Sarah"
 ✅ User Timezone — "Europe/Berlin"
 ✅ Profile — found at [path]
@@ -165,7 +160,7 @@ Stop the old relay service first? [Yes/No]
 **Step 4 — Act on findings:**
 
 - **Reusable credentials found:** Copy them into this project's `.env`. Confirm with the user before overwriting anything. Never delete the source.
-- **Existing Supabase with data:** Run `db/schema.sql` which uses `IF NOT EXISTS` — safe for existing tables. Only new tables get created.
+- **Existing database found:** Report which backend is active. Both are supported. Run `db/schema.sql` for Supabase if needed (uses `IF NOT EXISTS` — safe for existing tables).
 - **Conflicting services found:** Ask the user before stopping them. Explain that two bots polling the same Telegram token will cause message conflicts.
 - **Profile found:** Offer to copy it to `config/profile.md`. Let user review it first.
 - **Nothing found:** Proceed normally from Phase 1. No special handling needed.
@@ -198,30 +193,64 @@ Based on the scan, tell the user which phases are already done and which remain.
 
 ---
 
-## Phase 2: Supabase (Required, ~10 min)
+## Phase 2: Database (Required, ~5 min)
 
-### What you need to do:
+GoBot works with either Convex or Supabase. Choose one:
+
+| | Convex (recommended) | Supabase |
+|---|---|---|
+| Setup | One command | ~10 min (create project, run SQL, get 3 keys) |
+| Schema | TypeScript, auto-managed | SQL, you manage manually |
+| Semantic search | Built-in vector indexes | Requires edge functions |
+| File storage | Built-in | Separate bucket setup |
+| Data access | Dashboard + export | Full SQL + Dashboard |
+| Self-hosting | No (cloud only) | Yes (open source) |
+| Ecosystem | Newer, growing fast | Mature, large community |
+| Free tier | Generous for single user | Generous for single user |
+
+**Recommendation:** Convex — faster setup, auto-manages schema and search, most community members use it.
+
+**Choose Supabase if:** You want full SQL access, plan to self-host, or already have a Supabase project.
+
+**User says:** "I'll use Convex" or "I'll use Supabase"
+
+### Phase 2A: Convex Setup
+
+1. Go to [convex.dev](https://convex.dev) and create a free account
+2. Claude Code runs: `npx convex dev --once --configure=new`
+3. This creates your Convex deployment and gives you a `CONVEX_URL`
+
+**What Claude Code does:**
+- Runs `npx convex dev --once --configure=new` to create your Convex project
+- Saves your `CONVEX_URL` to `.env`
+- Deploys the schema and server functions
+- Runs `bun run setup/test-convex.ts` to verify connectivity
+
+### Phase 2B: Supabase Setup
+
 1. Go to [supabase.com](https://supabase.com) and create a free account
-2. Create a new project (any name, choose a region close to you)
-3. Wait for the project to finish setting up (~2 min)
-4. Go to Project Settings > API and copy:
-   - **Project URL** (looks like `https://abc123.supabase.co`)
-   - **Publishable key** (labeled "anon public" or "Publishable" — may start with `eyJ...` or `sb_publishable_...`)
-   - **Secret key** (labeled "service_role" or "Secret" — may start with `eyJ...` or `sb_secret_...` — keep this secret!)
+2. Create a new project
+3. Get your 3 keys from **Settings → API**:
+   - Project URL (`SUPABASE_URL`)
+   - Anon public key (`SUPABASE_ANON_KEY`)
+   - Service role key (`SUPABASE_SERVICE_ROLE_KEY`)
+4. Run `db/schema.sql` in the **SQL Editor** (Supabase Dashboard → SQL Editor → New Query → Paste & Run)
+5. Create a Storage bucket: **Storage → New Bucket → Name: `gobot-assets` → Make public**
 
-### What Claude Code does:
-- Saves your Supabase credentials to `.env`
-- Opens `db/schema.sql` and runs it in your Supabase SQL editor (you paste it)
+**What Claude Code does:**
+- Saves your keys to `.env`
 - Runs `bun run setup/test-supabase.ts` to verify connectivity
 
-> **WARNING — Existing Supabase data:** If you're using an existing Supabase project that already has data, **do NOT drop or delete any existing tables**. The schema uses `CREATE TABLE IF NOT EXISTS` which safely skips tables that already exist. If Claude Code suggests dropping, restructuring, or recreating tables to resolve a conflict, **say no** — your existing data will be permanently deleted. Instead, create a new separate Supabase project for the bot, or manually add only the missing tables.
+**Optional:** Install Supabase MCP server for direct DB access:
+```bash
+npx supabase mcp setup --project-ref YOUR_PROJECT_REF
+```
 
-> **Upgrading from a previous version?** Just re-run `db/schema.sql` — all statements use `IF NOT EXISTS` and are safe to re-run. New tables (like `assets`) will be created without touching existing data. After running the schema, create a Storage bucket named `gobot-assets` in your Supabase Dashboard (Settings → Storage → New Bucket → Name: "gobot-assets" → Make public).
+### Switching databases later
 
-### Tell me:
-"Here are my Supabase keys: URL=[URL], anon=[KEY], service_role=[KEY]"
-
-> **Note:** Supabase recently renamed their keys. "anon public key" is now called "Publishable key" and may start with `sb_publishable_` instead of `eyJ`. Both formats work — just paste whatever your dashboard shows.
+- **Supabase → Convex:** Set up Convex, run `bun run scripts/migrate-to-convex.ts`
+- **Convex → Supabase:** Set up Supabase, remove `CONVEX_URL` from `.env`
+- If both are set, Convex takes priority
 
 ---
 
@@ -229,15 +258,15 @@ Based on the scan, tell the user which phases are already done and which remain.
 
 Enable AI-powered memory search. Without this, the bot still works — it just uses basic text matching instead of understanding meaning.
 
-### What you need:
-1. An OpenAI API key from [platform.openai.com](https://platform.openai.com)
-2. Supabase MCP already connected (from Phase 2)
+### If using Convex:
+- Get an OpenAI API key from [platform.openai.com](https://platform.openai.com)
+- Claude Code sets the key as a Convex env var: `npx convex env set OPENAI_API_KEY <key>`
+- Convex actions automatically generate embeddings for new messages and assets
 
-### What Claude Code does:
-- Stores your OpenAI key as a Supabase secret
-- Deploys two edge functions (store-telegram-message, search-memory)
-- Runs the match_messages SQL function in your database
-- Verifies semantic search works
+### If using Supabase:
+- Save an OpenAI or Gemini API key to `.env` as `OPENAI_API_KEY` or `GEMINI_API_KEY`
+- Edge functions handle embedding generation (advanced setup)
+- Basic text search works immediately without this step
 
 ### Tell me:
 "Set up semantic search. My OpenAI key is [your key]" or "Skip" to use basic text search.
@@ -496,7 +525,7 @@ The VPS gateway (`src/vps-gateway.ts`) now supports two processing modes:
 
 To enable: set `USE_AGENT_SDK=true` in your VPS `.env`. Requires `@anthropic-ai/claude-agent-sdk` (installed via `bun install`).
 
-### VPS Gateway (Legacy Direct API)
+### VPS Gateway (Direct API)
 
 When Agent SDK is disabled (or for Haiku tier), the VPS gateway falls back to direct Anthropic Messages API — no Claude Code overhead. Responds in 2-5s but with limited capabilities (Supabase context only, no MCP servers or skills).
 
@@ -526,8 +555,13 @@ ANTHROPIC_API_KEY=sk-ant-api03-your_key_here
 # Same credentials as local
 TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_USER_ID=your_user_id
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your_anon_key
+
+# Database — use same backend as local
+# Convex:
+CONVEX_URL=https://your-deployment.convex.cloud
+# Supabase:
+# SUPABASE_URL=https://your-project.supabase.co
+# SUPABASE_ANON_KEY=your_anon_key
 ```
 
 ### Tell me:
@@ -576,6 +610,19 @@ happens when your local machine handles the message (hybrid mode).
 ## Project Structure
 
 ```
+convex/                  # Convex backend (primary database)
+  schema.ts              # Table definitions with vector indexes
+  messages.ts            # Message CRUD + semantic search
+  memory.ts              # Facts, goals, memory context
+  logs.ts                # Observability logging
+  asyncTasks.ts          # Human-in-the-loop task management
+  nodeHeartbeat.ts       # Hybrid mode health tracking
+  assets.ts              # File/image storage with Convex Storage
+  knowledge.ts           # Structured knowledge base
+  embeddings.ts          # OpenAI embedding generation (actions)
+  http.ts                # HTTP webhook routes (future)
+scripts/
+  migrate-to-convex.ts   # Supabase → Convex data migration
 src/
   bot.ts                 # Main relay daemon (local mode, polling)
   vps-gateway.ts         # VPS gateway (webhook mode, Anthropic API)
@@ -592,7 +639,8 @@ src/
     mac-health.ts        # Local machine health checking (hybrid mode)
     task-queue.ts        # Human-in-the-loop task management
     asset-store.ts       # Persistent image/file storage with AI descriptions
-    supabase.ts          # Database client + async tasks + heartbeat
+    convex.ts            # Database client (Convex primary, Supabase fallback)
+    supabase.ts          # Supabase client (used as fallback)
     memory.ts            # Facts, goals, intents
     fallback-llm.ts      # Backup LLM chain
     data-sources/        # Pluggable morning briefing data
