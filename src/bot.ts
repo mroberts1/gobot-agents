@@ -97,6 +97,7 @@ const CLAUDE_PATH = process.env.CLAUDE_PATH || "claude";
 const TIMEZONE = process.env.USER_TIMEZONE || "UTC";
 const HEALTH_PORT = parseInt(process.env.HEALTH_PORT || "3000", 10);
 const GATEWAY_SECRET = process.env.GATEWAY_SECRET || "";
+const DEFAULT_AGENT = process.env.DEFAULT_AGENT || "general";
 
 if (!BOT_TOKEN) {
   console.error("FATAL: TELEGRAM_BOT_TOKEN is required. Set it in .env");
@@ -514,7 +515,7 @@ async function handleTextMessage(ctx: Context): Promise<void> {
   // ----- Default: Claude Processing -----
 
   // Determine agent from topic (if forum mode)
-  const agentName = topicId ? getAgentByTopicId(topicId) || "general" : "general";
+  const agentName = topicId ? getAgentByTopicId(topicId) || DEFAULT_AGENT : DEFAULT_AGENT;
   await callClaudeAndReply(ctx, chatId, text, agentName, topicId);
 }
 
@@ -562,7 +563,7 @@ async function handleVoiceMessage(ctx: Context): Promise<void> {
 
     // Process with Claude (uses same complexity-aware routing as text messages)
     const topicId = (ctx.message as any)?.message_thread_id as number | undefined;
-    const agentName = topicId ? getAgentByTopicId(topicId) || "general" : "general";
+    const agentName = topicId ? getAgentByTopicId(topicId) || DEFAULT_AGENT : DEFAULT_AGENT;
 
     const voicePrompt = `[Voice message transcription]: ${transcript}`;
     const tier = classifyComplexity(voicePrompt);
@@ -660,7 +661,7 @@ async function handlePhotoMessage(ctx: Context): Promise<void> {
 
     // Process with Claude (uses same complexity-aware routing as text messages)
     const topicId = (ctx.message as any)?.message_thread_id as number | undefined;
-    const agentName = topicId ? getAgentByTopicId(topicId) || "general" : "general";
+    const agentName = topicId ? getAgentByTopicId(topicId) || DEFAULT_AGENT : DEFAULT_AGENT;
 
     const assetNote = asset ? `\n(asset: ${asset.id})` : "";
     const photoPrompt = `[Image attached: ${localPath}]${assetNote}\n\nUser says: ${caption}`;
@@ -764,7 +765,7 @@ async function handleDocumentMessage(ctx: Context): Promise<void> {
 
     // Process with Claude (uses same complexity-aware routing as text messages)
     const topicId = (ctx.message as any)?.message_thread_id as number | undefined;
-    const agentName = topicId ? getAgentByTopicId(topicId) || "general" : "general";
+    const agentName = topicId ? getAgentByTopicId(topicId) || DEFAULT_AGENT : DEFAULT_AGENT;
 
     const docPrompt = `[User sent a document saved at: ${localPath}, filename: ${fileName}]\n\n${caption}`;
     const tier = classifyComplexity(caption);
